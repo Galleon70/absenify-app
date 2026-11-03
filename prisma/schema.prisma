@@ -1,0 +1,273 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------
+
+enum Role {
+  OWNER // Pemilik platform (kita): menambah & mengelola sekolah klien
+  PARENT
+  TEACHER
+  ADMIN
+  PRINCIPAL
+  STUDENT // Hanya aktif di Variant 2 & 3 (Mode 1 tidak memakai akun siswa)
+}
+
+enum AppVariant {
+  VARIANT_1 // Mode 1: 4 Role (Siswa murni data record)
+  VARIANT_2 // Mode 2: 5 Role (Siswa login dari rumah/laptop, dilarang HP di sekolah)
+  VARIANT_3 // Mode 3: 5 Role (Siswa login + HP aktif untuk QR)
+}
+
+enum AttendanceStatus {
+  HADIR
+  IZIN
+  SAKIT
+  ALPA
+  TERLAMBAT
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  SAKIT
+  IZIN
+}
+
+// ------------------------------------------------------
+// MODELS
+// ------------------------------------------------------
+
+model School {
+  id         String     @id @default(cuid())
+  name       String
+  appVariant AppVariant @default(VARIANT_1)
+  isActive   Boolean    @default(true) // false = langganan dihentikan, sekolah tidak bisa login
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  teacherAttendances TeacherAttendance[]
+  announcements Announcement[]
+
+  // Data klien & langganan (diisi owner)
+  contactName   String?
+  contactPhone  String?
+  pricePerMonth Int?       // harga langganan per bulan (Rupiah)
+  paidUntil     DateTime?  // langganan berlaku sampai tanggal ini
+  notes         String?
+  lateAfter     String?    @default("07:15") // Mode 3: scan QR setelah jam ini dicatat TERLAMBAT (HH:MM)
+
+  payments      SchoolPayment[]
+  users         User[]
+  classRooms    ClassRoom[]
+  students      Student[]
+  attendances   Attendance[]
+  leaveRequests LeaveRequest[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?  
+  username  String?  // NISN untuk Siswa / NIP untuk Guru
+  password  String
+  role      Role     @default(PARENT)
+  teacherAttendances TeacherAttendance[]
+  isActive   Boolean  @default(true) // false = akun dinonaktifkan (tidak bisa login), data tetap ada
+  mustChangePassword Boolean @default(false) // true = wajib ganti password saat login berikutnya
+  tokenVersion Int @default(0) // dinaikkan saat password diganti/direset -> semua sesi lama otomatis tidak berlaku
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // Relasi 1 Orang Tua -> Banyak Anak
+  parentStudents Student[] @relation("ParentStudents")
+
+  // Relasi Akun Siswa -> Profile Siswa (1-to-1 jika role == STUDENT)
+  studentProfile Student?  @relation("StudentUser")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Isolasi Login Unik Per Sekolah
+  @@unique([email, schoolId])
+  @@unique([username, schoolId])
+}
+
+model ClassRoom {
+  id        String    @id @default(uuid())
+  name      String    // Contoh: "7A"
+  grade     String?   // Contoh: "VII" / "X"
+  waliKelas String?   // Nama wali kelas (teks)
+  
+  schoolId  String
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  students  Student[]
+
+  @@unique([name, schoolId])
+}
+
+model Student {
+  id          String   @id @default(cuid())
+
+  // Akun Login Siswa (1-to-1) -> Dipakai di Variant 2 & Variant 3
+  userId      String?  @unique
+  user        User?    @relation("StudentUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  // Akun Orang Tua (1-to-Many)
+  parentId    String?
+  parent      User?    @relation("ParentStudents", fields: [parentId], references: [id], onDelete: SetNull)
+
+  name        String
+  nis         String?
+  nisn        String?
+  gender      String?
+  status      String?  @default("Aktif")
+  birthPlace  String?
+  birthDate   DateTime?
+  phone       String?
+  parentName  String?
+  inviteHash      String?   @unique // kode pendaftaran orang tua (disimpan ter-hash, sekali pakai)
+  inviteExpiresAt DateTime?
+  parentPhone String?
+  address     String?
+
+  classRoomId String?
+  classRoom   ClassRoom? @relation(fields: [classRoomId], references: [id], onDelete: SetNull)
+
+  schoolId    String
+  school      School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime       @default(now())
+  attendances   Attendance[]
+  leaveRequests LeaveRequest[]
+
+  @@unique([nisn, schoolId])
+}
+
+model Attendance {
+  id        String           @id @default(uuid())
+  date      String           // Format: "YYYY-MM-DD"
+  status    AttendanceStatus @default(HADIR)
+  note      String?
+
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  schoolId  String
+  school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime         @default(now())
+
+  @@unique([date, studentId]) // 1 siswa 1 record per tanggal
+}
+
+model LeaveRequest {
+  id        String      @id @default(uuid())
+  type      LeaveType
+  startDate String      // Format: "YYYY-MM-DD"
+  endDate   String      // Format: "YYYY-MM-DD"
+  reason    String
+  status    LeaveStatus @default(PENDING)
+
+  // Bukti pendukung (foto JPG/PNG/WEBP atau PDF, maks 3 MB), disimpan di database
+  requestedBy    String   @default("PARENT") // PARENT | STUDENT | ADMIN: siapa yang mengajukan izin
+  attachmentName String?
+  attachmentMime String?
+  attachmentData Bytes?
+
+  studentId String
+  student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  schoolId  String
+  school    School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime    @default(now())
+}
+
+// Riwayat pembayaran langganan sekolah (dicatat manual oleh owner)
+model SchoolPayment {
+  id        String   @id @default(cuid())
+  amount    Int      // Rupiah
+  months    Int      @default(1)
+  paidAt    DateTime @default(now())
+  note      String?
+  createdAt DateTime @default(now())
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, paidAt])
+}
+
+// Jejak aktivitas owner (siapa melakukan apa, kapan). Sengaja tanpa relasi supaya riwayat tetap ada.
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?
+  actorName      String?
+  action         String
+  targetSchoolId String?
+  targetName     String?
+  detail         String?
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetSchoolId, createdAt])
+}
+
+// Pembatas percobaan login (anti tebak password). key: "id:<email/username>", "ip:<alamat IP>", "pw:<userId>"
+model LoginThrottle {
+  key         String    @id
+  count       Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+}
+// ------------------------------------------------------
+// ABSENSI GURU / PEGAWAI
+// ------------------------------------------------------
+
+model TeacherAttendance {
+  id        String   @id @default(uuid())
+  date      String   // Format: "YYYY-MM-DD"
+  checkIn   String?  // Format: "HH:mm"
+  checkOut  String?  // Format: "HH:mm"
+  status    String   @default("HADIR") // HADIR / TERLAMBAT / IZIN
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, userId]) // 1 guru 1 record absen per tanggal
+}
+// ------------------------------------------------------
+// PENGUMUMAN SEKOLAH
+// ------------------------------------------------------
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  target    String   @default("ALL") // ALL | TEACHER | PARENT | STUDENT
+  author    String?  // Nama pembuat pengumuman (Admin/Wali Kelas)
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
