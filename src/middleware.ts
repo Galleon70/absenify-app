@@ -4,6 +4,9 @@ import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/auth';
 import { hasStudentRole, STUDENT_PORTAL_READY } from './lib/variant';
 
+// Wajib untuk Cloudflare Pages Edge Runtime
+export const runtime = 'edge';
+
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
@@ -35,9 +38,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Jika BELUM login dan mencoba buka area terproteksi
-  if (!token) {
+  // 2. Jika BELUM login dan mencoba buka area terproteksi (selain API routes)
+  if (!token && !pathname.startsWith('/api')) {
     return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Jika request ke API, biarkan lolos dari pengalihan login middleware (di-handle API route handler sendiri)
+  if (pathname.startsWith('/api')) {
+    return NextResponse.next();
   }
 
   // 3. Verifikasi Token
@@ -111,5 +119,6 @@ export const config = {
     '/scan/:path*',
     '/login',
     '/change-password',
+    '/api/:path*',
   ],
 };
