@@ -4,9 +4,6 @@ import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/auth';
 import { hasStudentRole, STUDENT_PORTAL_READY } from './lib/variant';
 
-// Wajib untuk Cloudflare Pages Edge Runtime
-export const runtime = 'edge';
-
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
