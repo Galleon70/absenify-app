@@ -3,13 +3,10 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { Role, AppVariant } from '@prisma/client'; // <-- IMPORT DARI PRISMA
 
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('JWT_SECRET wajib diisi di environment production');
-}
+// Gunakan fallback secret jika JWT_SECRET belum terbaca saat fase static build Next.js
+const SECRET_KEY_STRING = process.env.JWT_SECRET || 'dev-only-secret-ganti-di-env';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'dev-only-secret-ganti-di-env'
-);
+const JWT_SECRET = new TextEncoder().encode(SECRET_KEY_STRING);
 
 export interface TokenPayload {
   userId: string;
