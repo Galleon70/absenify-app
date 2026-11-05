@@ -1,0 +1,13 @@
+var R=require("../../chunks/ssr/[turbopack]_runtime.js")("server/app/change-password/page.js")
+R.c("server/chunks/ssr/[root-of-the-server]__1y9r5v0._.js")
+R.c("server/chunks/ssr/node_modules_next_dist_1n3w9lb._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__03fokgg._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__10ppemx._.js")
+R.c("server/chunks/ssr/_19w8ehr._.js")
+R.c("server/chunks/ssr/node_modules_next_dist_client_components_0wpq8j3._.js")
+R.c("server/chunks/ssr/node_modules_next_dist_client_components_builtin_forbidden_0symwr9.js")
+R.c("server/chunks/ssr/node_modules_next_dist_client_components_builtin_unauthorized_0l_sp0x.js")
+R.c("server/chunks/ssr/node_modules_next_dist_client_components_builtin_global-error_0q-w892.js")
+R.c("server/chunks/ssr/_next-internal_server_app_change-password_page_actions_0r2ginr.js")
+R.m(40682)
+module.exports=R.m(40682).exports
