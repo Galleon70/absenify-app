@@ -1,12 +1,12 @@
 // src/lib/site-config.ts
 // SATU tempat untuk nama, kontak, dan alamat situs. Ganti di sini, semua halaman publik ikut berubah.
 export const SITE = {
-  name: 'NamaAplikasi', // GANTI setelah nama diputuskan
+  name: 'Absenify', // GANTI setelah nama diputuskan
   tagline: 'Absensi dan izin siswa digital untuk sekolah di seluruh Indonesia',
   description:
     'Aplikasi absensi dan izin siswa online: guru mencatat kehadiran, orang tua mengajukan izin dengan bukti foto, kepala sekolah memantau ringkasan. Bisa dibuka dari HP, tanpa instal.',
   url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', // isi NEXT_PUBLIC_SITE_URL saat deploy
-  whatsapp: '6281234567890', // GANTI: awalan 62, tanpa 0 di depan dan tanpa tanda +
+  whatsapp: '6282146331736', // GANTI: awalan 62, tanpa 0 di depan dan tanpa tanda +
   email: 'nama@gmail.com', // GANTI
   // Foto latar beranda (opsional). Taruh file di folder `public`, lalu tulis di sini, mis. ['/hero1.jpg', '/hero2.jpg', '/hero3.jpg'].
   // Lebih dari satu = bergantian otomatis. Kosong = ilustrasi bawaan.

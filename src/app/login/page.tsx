@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Lock, Mail, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,8 +56,6 @@ export default function LoginPage() {
 
       // Password sementara -> wajib ganti dulu
       if (data.mustChangePassword) {
-        // Bawa password sementara ke halaman berikutnya (hanya di tab ini, dihapus begitu terbaca)
-        // supaya tidak perlu mengetik ulang.
         try {
           sessionStorage.setItem("hk_temp_pw", password);
         } catch {
@@ -90,7 +88,7 @@ export default function LoginPage() {
         default:
           router.push("/");
       }
-    } catch (err) {
+    } catch {
       setError("Terjadi kesalahan jaringan, silakan coba lagi.");
     } finally {
       setLoading(false);
@@ -100,12 +98,16 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
       <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
-        {/* Banner Header */}
+        {/* Banner Header dengan Logo Absenify Bulat */}
         <div className="flex flex-col items-center bg-indigo-600 px-6 py-8 text-center text-white">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-            <Building2 className="h-8 w-8 text-white" />
+          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white p-1 shadow-md overflow-hidden shrink-0">
+            <img
+              src="/logo.jpg"
+              alt="Absenify Logo"
+              className="w-full h-full object-cover scale-[1.25]"
+            />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">SmartSchool</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Absenify</h1>
           <p className="mt-1 text-xs text-indigo-100">
             Sistem Presensi & Manajemen Kehadiran Siswa
           </p>

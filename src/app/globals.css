@@ -7,3 +7,91 @@ html, body {
   color: #ffffff;
   min-height: 100vh;
 }
+
+/* ================= SKELETON SHIMMER ================= */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@utility animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 25%,
+    #e2e8f0 50%,
+    #f1f5f9 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@utility animate-shimmer-dark {
+  background: linear-gradient(
+    90deg,
+    #1e293b 25%,
+    #334155 50%,
+    #1e293b 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* ================= BUTTON TACTILE ANIMATION ================= */
+@utility btn-animate {
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.15s ease,
+              background-color 0.15s ease,
+              border-color 0.15s ease !important;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px) !important;
+  }
+
+  &:active {
+    transform: scale(0.95) translateY(0) !important;
+  }
+
+  &:disabled {
+    transform: none !important;
+    cursor: not-allowed;
+  }
+}
+
+/* ================= CARD HOVER ANIMATION ================= */
+@utility card-animate {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.25s ease !important;
+
+  &:hover {
+    transform: translateY(-6px) !important;
+    box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.12),
+                0 8px 10px -6px rgba(79, 70, 229, 0.08) !important;
+    border-color: rgba(99, 102, 241, 0.35) !important;
+  }
+}
+
+/* Otomatis berlaku ke semua <button> dan link tombol di seluruh halaman */
+button:not(:disabled),
+a[class*="bg-"]:not(:disabled) {
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.15s ease,
+              background-color 0.15s ease,
+              border-color 0.15s ease !important;
+  cursor: pointer;
+}
+
+button:not(:disabled):hover,
+a[class*="bg-"]:not(:disabled):hover {
+  transform: translateY(-2px) !important;
+}
+
+button:not(:disabled):active,
+a[class*="bg-"]:not(:disabled):active {
+  transform: scale(0.95) translateY(0) !important;
+}

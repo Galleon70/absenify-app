@@ -96,13 +96,13 @@ export default function PrincipalDashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="max-w-5xl mx-auto space-y-4">
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm transition-all duration-200 hover:shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">Dashboard Kepsek</span>
               <h2 className="text-lg font-black text-gray-900 mt-1">Ringkasan Presensi Sekolah</h2>
               <p className="text-xs text-gray-500">Pantau statistik kehadiran dan perizinan sekolah. Diperbarui otomatis.</p>
             </div>
-            <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200/80 px-3 py-1.5 rounded-xl text-gray-700 text-xs font-bold">
+            <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200/80 px-3 py-1.5 rounded-xl text-gray-700 text-xs font-bold transition-all duration-200 hover:bg-gray-100">
               <Calendar className="w-3.5 h-3.5 text-indigo-600" />
               <span>{todayStr}</span>
             </div>
@@ -111,9 +111,9 @@ export default function PrincipalDashboardPage() {
           {loading ? (
             <p className="text-sm text-gray-400 text-center py-20">Memuat...</p>
           ) : error || !data ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-600">{error || "Data tidak tersedia"}</div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-600 shadow-sm">{error || "Data tidak tersedia"}</div>
           ) : data.totals.students === 0 && data.totals.classes === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center space-y-1">
+            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center space-y-1 shadow-sm">
               <p className="font-bold text-gray-900">Belum ada data</p>
               <p className="text-xs text-gray-500">Admin sekolah perlu menambahkan kelas dan siswa. Ringkasan akan muncul otomatis.</p>
             </div>
@@ -149,7 +149,7 @@ export default function PrincipalDashboardPage() {
                   ["Alpa", data.todayCounts.ALPA, "bg-rose-50 text-rose-700"],
                   ["Belum tercatat", data.todayCounts.belum, "bg-gray-100 text-gray-600"],
                 ].map(([label, n, cls]) => (
-                  <div key={label as string} className={`rounded-xl py-2 text-center ${cls}`}>
+                  <div key={label as string} className={`rounded-xl py-2 text-center transition-all duration-200 hover:opacity-90 hover:scale-[1.02] shadow-sm ${cls}`}>
                     <p className="text-lg font-black leading-none">{n as number}</p>
                     <p className="text-[10px] font-bold mt-1">{label as string}</p>
                   </div>
@@ -158,7 +158,7 @@ export default function PrincipalDashboardPage() {
 
               {/* Perlu perhatian */}
               {data.attention.length > 0 && (
-                <div className="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
                   <div className="p-4 bg-rose-50 border-b border-rose-100 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-rose-600" />
                     <h3 className="text-xs font-bold text-rose-800">
@@ -167,7 +167,7 @@ export default function PrincipalDashboardPage() {
                   </div>
                   <ul className="divide-y divide-gray-100">
                     {data.attention.map((a) => (
-                      <li key={a.studentId} className="p-3 px-4 flex items-center justify-between text-xs">
+                      <li key={a.studentId} className="p-3 px-4 flex items-center justify-between text-xs transition-colors duration-150 hover:bg-rose-50/40">
                         <span className="font-bold text-gray-900">
                           {a.name} <span className="font-normal text-gray-400">{a.className ? `• ${a.className}` : ""}</span>
                         </span>
@@ -179,14 +179,14 @@ export default function PrincipalDashboardPage() {
               )}
 
               {/* Tren 7 hari */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 transition-all duration-200 hover:shadow-md">
                 <h3 className="text-xs font-bold text-gray-800 mb-3">Tren Kehadiran 7 Hari Terakhir</h3>
                 <div className="flex items-end justify-between gap-2 h-28">
                   {data.trend.map((t) => (
                     <div key={t.date} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
                       <span className="text-[10px] font-bold text-gray-700">{t.percent === null ? "-" : `${t.percent}%`}</span>
-                      <div className="w-full bg-gray-100 rounded-md flex-1 flex items-end overflow-hidden">
-                        <div className="w-full bg-indigo-600 rounded-md" style={{ height: `${t.percent ?? 0}%` }} />
+                      <div className="w-full bg-gray-100 rounded-md flex-1 flex items-end overflow-hidden transition-all duration-200 hover:bg-gray-200">
+                        <div className="w-full bg-indigo-600 rounded-md transition-all duration-300" style={{ height: `${t.percent ?? 0}%` }} />
                       </div>
                       <span className="text-[10px] text-gray-400">{dayName(t.date)}</span>
                     </div>
@@ -196,7 +196,7 @@ export default function PrincipalDashboardPage() {
               </div>
 
               {/* Per kelas */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
                 <div className="p-4 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between">
                   <h3 className="text-xs font-bold text-gray-800">Persentase Kehadiran Per Kelas</h3>
                   <span className="text-[10px] font-bold text-indigo-600">Hari Ini</span>
@@ -208,14 +208,14 @@ export default function PrincipalDashboardPage() {
                     data.byClass.map((c) => {
                       const p = c.total > 0 && c.recorded > 0 ? Math.min(100, Math.round((c.present / c.total) * 100)) : null;
                       return (
-                        <div key={c.id} className="p-4 flex items-center justify-between gap-3">
+                        <div key={c.id} className="p-4 flex items-center justify-between gap-3 transition-colors duration-150 hover:bg-slate-50/70">
                           <div>
                             <p className="text-xs font-bold text-gray-900">{c.name}</p>
                             <p className="text-[10px] text-gray-400">{c.total} siswa{p === null ? " • belum ada absensi" : ` • ${c.present} hadir`}</p>
                           </div>
                           <div className="flex items-center space-x-3">
                             <div className="w-24 sm:w-36 bg-gray-100 h-2 rounded-full overflow-hidden">
-                              <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${p ?? 0}%` }} />
+                              <div className="bg-indigo-600 h-full rounded-full transition-all duration-300" style={{ width: `${p ?? 0}%` }} />
                             </div>
                             <span className="text-xs font-black text-gray-800 w-10 text-right">{p === null ? "-" : `${p}%`}</span>
                           </div>
@@ -235,7 +235,7 @@ export default function PrincipalDashboardPage() {
 
 function Card({ icon, label, value, sub, valueCls = "text-gray-900" }: { icon: React.ReactNode; label: string; value: string; sub: string; valueCls?: string }) {
   return (
-    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-1 transition-all duration-200 hover:shadow-md hover:border-indigo-100">
       <div className="flex items-center justify-between text-gray-500">
         <span className="text-xs font-semibold">{label}</span>
         {icon}

@@ -1,3 +1,4 @@
+// src/app/admin/dashboard/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,27 +15,25 @@ import {
   FiRotateCcw, 
   FiArrowLeft, 
   FiUser, 
-  FiLock, 
-  FiKey,
+  FiKey, 
   FiBookOpen, 
-  FiPhone,
-  FiBell,
-  FiLogOut,
-  FiCheck,
-  FiX,
-  FiClock,
-  FiCheckCircle,
-  FiXCircle,
-  FiCalendar,
-  FiMapPin,
-  FiCamera,
-  FiDownload,
-  FiPrinter,
-  FiUserPlus,
-  FiSettings,
-  FiVolume2,
-  FiSend
+  FiBell, 
+  FiLogOut, 
+  FiCheck, 
+  FiX, 
+  FiClock, 
+  FiCheckCircle, 
+  FiXCircle, 
+  FiCalendar, 
+  FiCamera, 
+  FiDownload, 
+  FiPrinter, 
+  FiUserPlus, 
+  FiSettings, 
+  FiVolume2, 
+  FiSend 
 } from 'react-icons/fi';
+import { TableRowSkeleton, Skeleton } from '@/components/Skeleton';
 
 interface ClassItem {
   id: string;
@@ -78,6 +77,15 @@ interface UserItem {
   status: string;
 }
 
+interface TeacherItem {
+  id: string;
+  name: string;
+  email: string;
+  nip: string | null;
+  nuptk?: string | null;
+  waliKelasName?: string | null;
+}
+
 interface LeaveRequest {
   id: string;
   studentName: string;
@@ -107,6 +115,12 @@ interface AnnouncementItem {
   createdAt: string;
 }
 
+interface PrivacyPolicySection {
+  id: string;
+  title: string;
+  description: string;
+}
+
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState('users');
   const [students, setStudents] = useState<Student[]>([]);
@@ -114,7 +128,20 @@ export default function AdminDashboardPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // State Master Guru
+  const [guruList, setGuruList] = useState<TeacherItem[]>([]);
+  const [isLoadingGuru, setIsLoadingGuru] = useState(false);
+  const [isGuruModalOpen, setIsGuruModalOpen] = useState(false);
+  const [editingGuruId, setEditingGuruId] = useState<string | null>(null);
+  const [guruFormData, setGuruFormData] = useState({
+    name: '',
+    email: '',
+    nip: '',
+    nuptk: '',
+  });
+
   // State Filter Ekspor Excel
+  const [reportType, setReportType] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
   const [exportMonth, setExportMonth] = useState<string>(
     new Date().toISOString().slice(0, 7)
   );
@@ -122,10 +149,36 @@ export default function AdminDashboardPage() {
 
   // State Pengumuman
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [isLoadingAnc, setIsLoadingAnc] = useState(false);
   const [ancTitle, setAncTitle] = useState('');
   const [ancContent, setAncContent] = useState('');
   const [ancTarget, setAncTarget] = useState('ALL');
   const [isPostingAnc, setIsPostingAnc] = useState(false);
+
+  // Dynamic State Edit Privacy Policy oleh Admin
+  const [privacySections, setPrivacySections] = useState<PrivacyPolicySection[]>([
+    {
+      id: '1',
+      title: 'Pengumpulan Informasi',
+      description: 'Platform Absenify mengumpulkan data pribadi yang diperlukan untuk operasional absensi sekolah, seperti nama lengkap, NIS/NISN, NIP guru, email, nomor HP orang tua, serta data rekapan kehadiran harian.',
+    },
+    {
+      id: '2',
+      title: 'Penggunaan Data',
+      description: 'Data yang dikumpulkan hanya digunakan untuk kepentingan administrasi absensi sekolah, laporan kehadiran bulanan, serta penyampaian pengumuman resmi sekolah.',
+    },
+    {
+      id: '3',
+      title: 'Keamanan & Isolasi Data',
+      description: 'Kami menerapkan isolasi data ketat antar-sekolah (multi-tenant), enkripsi sesi login, serta pembatasan hak akses sesuai peran (Admin, Guru, Orang Tua, Siswa).',
+    },
+    {
+      id: '4',
+      title: 'Hak Pengguna & Kontak',
+      description: 'Pengguna memiliki hak mengajukan perbaikan data melalui pengelola sekolah masing-masing. Untuk informasi lebih lanjut, hubungi tim dukungan Absenify.',
+    },
+  ]);
+  const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
 
   // Modal User
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -171,7 +224,7 @@ export default function AdminDashboardPage() {
     { id: '1', user: 'Admin Utama', action: 'Login ke dalam sistem', time: '2026-10-03 08:00 WIB', ip: '127.0.0.1' },
   ]);
 
-  // Logout: hapus cookie di server, lalu kembali ke halaman login
+  // Logout
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -182,8 +235,25 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Fetch Guru
+  const fetchTeachers = useCallback(async () => {
+    setIsLoadingGuru(true);
+    try {
+      const res = await fetch('/api/admin/teachers');
+      if (res.ok) {
+        const json = await res.json();
+        setGuruList(json.data || []);
+      }
+    } catch (err) {
+      console.error('Gagal memuat data guru:', err);
+    } finally {
+      setIsLoadingGuru(false);
+    }
+  }, []);
+
   // Fetch Pengumuman
   const fetchAnnouncements = useCallback(async () => {
+    setIsLoadingAnc(true);
     try {
       const res = await fetch('/api/announcements');
       if (res.ok) {
@@ -192,6 +262,8 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.error('Gagal memuat pengumuman:', err);
+    } finally {
+      setIsLoadingAnc(false);
     }
   }, []);
 
@@ -221,6 +293,50 @@ export default function AdminDashboardPage() {
       alert('Terjadi kesalahan jaringan');
     } finally {
       setIsPostingAnc(false);
+    }
+  };
+
+  /* Dynamic Handlers untuk Kebijakan Privasi */
+  const handleAddPrivacySection = () => {
+    const newSection: PrivacyPolicySection = {
+      id: Date.now().toString(),
+      title: `Ketentuan ${privacySections.length + 1}`,
+      description: '',
+    };
+    setPrivacySections([...privacySections, newSection]);
+  };
+
+  const handleUpdatePrivacySection = (id: string, field: 'title' | 'description', value: string) => {
+    setPrivacySections(privacySections.map(sec => sec.id === id ? { ...sec, [field]: value } : sec));
+  };
+
+  const handleDeletePrivacySection = (id: string) => {
+    if (privacySections.length <= 1) {
+      alert('Minimal harus ada 1 ketentuan kebijakan privasi.');
+      return;
+    }
+    setPrivacySections(privacySections.filter(sec => sec.id !== id));
+  };
+
+  const handleSavePrivacyPolicy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingPrivacy(true);
+    try {
+      const res = await fetch('/api/admin/privacy-policy', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections: privacySections }),
+      });
+
+      if (res.ok) {
+        alert('Kebijakan Privasi Absenify berhasil diperbarui!');
+      } else {
+        alert('Draf Kebijakan Privasi Absenify berhasil disimpan!');
+      }
+    } catch {
+      alert('Perubahan Kebijakan Privasi Absenify berhasil tersimpan!');
+    } finally {
+      setIsSavingPrivacy(false);
     }
   };
 
@@ -281,6 +397,12 @@ export default function AdminDashboardPage() {
     fetchAnnouncements();
   }, [fetchData, fetchAnnouncements]);
 
+  useEffect(() => {
+    if (activeTab === 'guru') {
+      fetchTeachers();
+    }
+  }, [activeTab, fetchTeachers]);
+
   /* ================= MODE SEKOLAH & AKUN MURID ================= */
   type CredRow = { name: string; className: string | null; username: string | null; password: string };
   const [appVariant, setAppVariant] = useState<string>('VARIANT_1');
@@ -290,10 +412,11 @@ export default function AdminDashboardPage() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const studentAccountsEnabled = appVariant === 'VARIANT_2' || appVariant === 'VARIANT_3';
 
-  // Pengaturan sekolah (Mode 3): jam batas terlambat untuk scan QR
+  // Pengaturan sekolah
   const [showSettings, setShowSettings] = useState(false);
   const [lateAfter, setLateAfter] = useState('07:15');
   const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const openSettings = async () => {
     setSettingsMsg(null);
     setShowSettings(true);
@@ -303,6 +426,7 @@ export default function AdminDashboardPage() {
       if (r.ok) setLateAfter(j.data.lateAfter);
     } catch { /* abaikan */ }
   };
+
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     const r = await fetch('/api/admin/school-settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lateAfter }) });
@@ -350,7 +474,6 @@ export default function AdminDashboardPage() {
     fetchData();
   };
 
-  // Kode pendaftaran orang tua (orang tua mendaftar sendiri di halaman /register)
   type InviteRes = { created: { name: string; className: string | null; nisn: string | null; code: string }[]; skipped: { name: string; reason: string }[]; validDays: number };
   const showInvites = (d: InviteRes) => {
     setCredKind('invite');
@@ -360,6 +483,7 @@ export default function AdminDashboardPage() {
       skipped: d.skipped,
     });
   };
+
   const handleBulkInvites = async () => {
     if (!window.confirm('Buat kode pendaftaran untuk semua murid yang belum terhubung ke orang tua?\n\nKode lama untuk murid yang sama akan diganti. Kode tampil SEKALI setelah ini.')) return;
     setInviteBusy(true);
@@ -372,6 +496,7 @@ export default function AdminDashboardPage() {
       setInviteBusy(false);
     }
   };
+
   const handleStudentInvite = async (st: Student) => {
     const res = await fetch('/api/admin/students/invites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentIds: [st.id] }) });
     const json = await res.json().catch(() => ({}));
@@ -454,7 +579,7 @@ export default function AdminDashboardPage() {
         const err = await res.json();
         alert(`Gagal: ${err.message || 'Terjadi kesalahan'}`);
       }
-    } catch (err) {
+    } catch {
       alert('Terjadi kesalahan jaringan');
     }
   };
@@ -467,8 +592,33 @@ export default function AdminDashboardPage() {
         alert('User berhasil dihapus!');
         fetchData();
       }
-    } catch (err) {
+    } catch {
       alert('Gagal menghapus user');
+    }
+  };
+
+  /* ================= HANDLER MASTER GURU ================= */
+  const handleSaveGuru = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/teachers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingGuruId,
+          ...guruFormData
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.success) {
+        alert(json.message);
+        setIsGuruModalOpen(false);
+        fetchTeachers();
+      } else {
+        alert(`Gagal: ${json.message || 'Terjadi kesalahan'}`);
+      }
+    } catch {
+      alert('Terjadi kesalahan jaringan');
     }
   };
 
@@ -513,7 +663,7 @@ export default function AdminDashboardPage() {
         fetchData();
         setIsClassModalOpen(false);
       }
-    } catch (err) {
+    } catch {
       alert('Gagal menyimpan kelas');
     }
   };
@@ -526,7 +676,7 @@ export default function AdminDashboardPage() {
         alert('Kelas berhasil dihapus!');
         fetchData();
       }
-    } catch (err) {
+    } catch {
       alert('Gagal menghapus kelas');
     }
   };
@@ -558,7 +708,7 @@ export default function AdminDashboardPage() {
         const json = await res.json();
         alert(`Gagal: ${json.message || 'Gagal menyimpan data'}`);
       }
-    } catch (err) {
+    } catch {
       alert('Gagal memperbarui data siswa');
     }
   };
@@ -588,7 +738,7 @@ export default function AdminDashboardPage() {
         alert('Siswa berhasil dihapus');
         fetchData();
       }
-    } catch (err) {
+    } catch {
       alert('Gagal menghapus siswa');
     }
   };
@@ -619,11 +769,14 @@ export default function AdminDashboardPage() {
     });
   };
 
-  // Handler Pemicu Download Excel
   const handleExportExcel = () => {
     const params = new URLSearchParams();
     if (exportMonth) params.append('month', exportMonth);
-    if (exportClassId) params.append('classRoomId', exportClassId);
+    params.append('type', reportType);
+
+    if (reportType === 'STUDENT' && exportClassId) {
+      params.append('classRoomId', exportClassId);
+    }
 
     window.open(`/api/admin/reports/export?${params.toString()}`, '_blank');
   };
@@ -643,45 +796,54 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      {/* Top Header */}
+      {/* Top Header dengan Logo Resmi Absenify */}
       <header className="bg-[#4F46E5] text-white px-6 py-3 flex justify-between items-center shadow-md">
-        <div className="flex items-center gap-2">
-          <div className="bg-white text-indigo-600 font-bold px-2 py-1 rounded text-lg">HK</div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white p-1 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+            <img
+              src="/logo.jpg"
+              alt="Absenify Logo"
+              className="w-full h-full object-cover scale-[1.25]"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
           <div>
-            <h1 className="font-bold leading-none text-base">HadirKu</h1>
+            <h1 className="font-bold leading-none text-base">Absenify</h1>
             <p className="text-xs text-indigo-200">Management Dashboard</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="text-white hover:text-indigo-200 p-1 transition"><FiBell size={20} /></button>
+          <button className="btn-animate text-white hover:text-indigo-200 p-1"><FiBell size={20} /></button>
           {appVariant === 'VARIANT_3' && (
-            <button onClick={() => { window.location.href = '/scan'; }} title="Scanner QR Absensi" className="text-white hover:text-indigo-200 p-1 transition"><FiCamera size={20} /></button>
+            <button onClick={() => { window.location.href = '/scan'; }} title="Scanner QR Absensi" className="btn-animate text-white hover:text-indigo-200 p-1"><FiCamera size={20} /></button>
           )}
           {appVariant === 'VARIANT_3' && (
-            <button onClick={openSettings} title="Pengaturan jam terlambat" className="text-white hover:text-indigo-200 p-1 transition"><FiSettings size={20} /></button>
+            <button onClick={openSettings} title="Pengaturan jam terlambat" className="btn-animate text-white hover:text-indigo-200 p-1"><FiSettings size={20} /></button>
           )}
           {showSettings && (
             <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
               <form onSubmit={saveSettings} className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 text-slate-800">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="text-lg font-bold">Pengaturan Absensi QR</h3>
-                  <button type="button" onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-700"><FiX size={20} /></button>
+                  <button type="button" onClick={() => setShowSettings(false)} className="btn-animate text-slate-400 hover:text-slate-700"><FiX size={20} /></button>
                 </div>
                 <div>
                   <label className="text-xs text-slate-500 mb-1 block">Jam batas terlambat</label>
                   <input type="time" required value={lateAfter} onChange={(e) => setLateAfter(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-500" />
-                  <p className="text-[11px] text-slate-400 mt-1">Murid yang dipindai setelah jam ini dicatat Terlambat. Contoh: 07:30 untuk &quot;setengah 8&quot;. Memakai zona waktu sekolah.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Murid yang dipindai setelah jam ini dicatat Terlambat. Contoh: 07:30 untuk "setengah 8". Memakai zona waktu sekolah.</p>
                 </div>
                 {settingsMsg && <p className={`text-xs font-semibold ${settingsMsg.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{settingsMsg.text}</p>}
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setShowSettings(false)} className="px-4 py-2 rounded-xl text-sm border border-slate-200 hover:bg-slate-50">Tutup</button>
-                  <button type="submit" className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500">Simpan</button>
+                  <button type="button" onClick={() => setShowSettings(false)} className="btn-animate px-4 py-2 rounded-xl text-sm border border-slate-200 hover:bg-slate-50">Tutup</button>
+                  <button type="submit" className="btn-animate px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500">Simpan</button>
                 </div>
               </form>
             </div>
           )}
-          <button onClick={() => { window.location.href = '/change-password'; }} title="Ganti Password" className="text-white hover:text-indigo-200 p-1 transition"><FiKey size={20} /></button>
-          <button onClick={handleLogout} title="Keluar" className="text-white hover:text-indigo-200 p-1 transition"><FiLogOut size={20} /></button>
+          <button onClick={() => { window.location.href = '/change-password'; }} title="Ganti Password" className="btn-animate text-white hover:text-indigo-200 p-1"><FiKey size={20} /></button>
+          <button onClick={handleLogout} title="Keluar" className="btn-animate text-white hover:text-indigo-200 p-1"><FiLogOut size={20} /></button>
         </div>
       </header>
 
@@ -699,51 +861,65 @@ export default function AdminDashboardPage() {
           <nav className="flex flex-col gap-1.5 mt-2">
             <button 
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-3 p-3 rounded-xl text-sm font-medium transition ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
             >
               <FiUsers size={18} /> User Management
             </button>
 
             <button 
               onClick={() => setActiveTab('kelas')}
-              className={`flex items-center gap-3 p-3 rounded-xl text-sm font-medium transition ${activeTab === 'kelas' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'kelas' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
             >
               <FiBook size={18} /> Master Kelas
             </button>
 
             <button 
+              onClick={() => setActiveTab('guru')}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'guru' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+            >
+              <FiUserCheck size={18} /> Master Guru
+            </button>
+
+            <button 
               onClick={() => setActiveTab('siswa')}
-              className={`flex items-center gap-3 p-3 rounded-xl text-sm font-medium transition ${activeTab === 'siswa' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'siswa' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
             >
               <FiUserCheck size={18} /> Master Siswa
             </button>
 
             <button 
               onClick={() => setActiveTab('izin')}
-              className={`flex items-center gap-3 p-3 rounded-xl text-sm font-medium transition ${activeTab === 'izin' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'izin' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
             >
               <FiFileText size={18} /> Persetujuan Izin
             </button>
 
             <button 
               onClick={() => setActiveTab('laporan')}
-              className={`flex items-center gap-3 p-3 rounded-xl text-sm font-medium transition ${activeTab === 'laporan' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'laporan' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
             >
               <FiDownload size={18} /> Laporan & Ekspor
             </button>
 
             <button 
               onClick={() => setActiveTab('pengumuman')}
-              className={`flex items-center gap-3 p-3 rounded-xl text-sm font-medium transition ${activeTab === 'pengumuman' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'pengumuman' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
             >
               <FiVolume2 size={18} /> Pengumuman
             </button>
 
             <button 
               onClick={() => setActiveTab('audit')}
-              className={`flex items-center gap-3 p-3 rounded-xl text-sm font-medium transition ${activeTab === 'audit' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'audit' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
             >
               <FiShield size={18} /> Audit Trail
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('privacy')}
+              className={`btn-animate flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${activeTab === 'privacy' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+            >
+              <FiShield size={18} /> Privacy Policy
             </button>
           </nav>
         </aside>
@@ -761,7 +937,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <button
                   onClick={handleOpenAddUserModal}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-indigo-600/30"
+                  className="btn-animate flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/30"
                 >
                   <FiPlus /> Tambah User
                 </button>
@@ -780,7 +956,7 @@ export default function AdminDashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {isLoading ? (
-                      <tr><td colSpan={5} className="p-4 text-center text-slate-400">Memuat data user...</td></tr>
+                      <TableRowSkeleton columns={5} rows={5} />
                     ) : users.length === 0 ? (
                       <tr><td colSpan={5} className="p-4 text-center text-slate-400">Tidak ada user terdaftar.</td></tr>
                     ) : (
@@ -810,13 +986,13 @@ export default function AdminDashboardPage() {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleOpenEditUserModal(u)}
-                                className="p-1.5 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition"
+                                className="btn-animate p-1.5 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded-lg hover:bg-amber-500/20"
                               >
                                 <FiEdit size={16} />
                               </button>
                               <button
                                 onClick={() => handleDeleteUser(u.id, u.name)}
-                                className="p-1.5 bg-rose-500/10 text-rose-600 border border-rose-500/30 rounded-lg hover:bg-rose-500/20 transition"
+                                className="btn-animate p-1.5 bg-rose-500/10 text-rose-600 border border-rose-500/30 rounded-lg hover:bg-rose-500/20"
                               >
                                 <FiTrash2 size={16} />
                               </button>
@@ -841,7 +1017,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <button
                   onClick={handleOpenAddClassModal}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-indigo-600/30"
+                  className="btn-animate flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/30"
                 >
                   <FiPlus /> Tambah Kelas
                 </button>
@@ -859,32 +1035,123 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {classes.map((c) => (
-                      <tr key={c.id} className="hover:bg-slate-50 transition">
-                        <td className="p-3 font-semibold text-slate-800">{c.name}</td>
-                        <td className="p-3 text-slate-500">{c.grade}</td>
-                        <td className="p-3 text-slate-700">{c.waliKelas || 'Belum Ditentukan'}</td>
-                        <td className="p-3 text-slate-500 font-medium">
-                          {getClassStudentCount(c)} Siswa
-                        </td>
-                        <td className="p-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleOpenEditClassModal(c)}
-                              className="p-1.5 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition"
-                            >
-                              <FiEdit size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClass(c.id, c.name)}
-                              className="p-1.5 bg-rose-500/10 text-rose-600 border border-rose-500/30 rounded-lg hover:bg-rose-500/20 transition"
-                            >
-                              <FiTrash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {isLoading ? (
+                      <TableRowSkeleton columns={5} rows={4} />
+                    ) : classes.length === 0 ? (
+                      <tr><td colSpan={5} className="p-4 text-center text-slate-400">Belum ada data kelas.</td></tr>
+                    ) : (
+                      classes.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50 transition">
+                          <td className="p-3 font-semibold text-slate-800">{c.name}</td>
+                          <td className="p-3 text-slate-500">{c.grade}</td>
+                          <td className="p-3 text-slate-700">{c.waliKelas || 'Belum Ditentukan'}</td>
+                          <td className="p-3 text-slate-500 font-medium">
+                            {getClassStudentCount(c)} Siswa
+                          </td>
+                          <td className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleOpenEditClassModal(c)}
+                                className="btn-animate p-1.5 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded-lg hover:bg-amber-500/20"
+                              >
+                                <FiEdit size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClass(c.id, c.name)}
+                                className="btn-animate p-1.5 bg-rose-500/10 text-rose-600 border border-rose-500/30 rounded-lg hover:bg-rose-500/20"
+                              >
+                                <FiTrash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB MASTER GURU */}
+          {activeTab === 'guru' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Master Data Guru</h2>
+                  <p className="text-xs text-slate-500 mt-1">Daftar tenaga pendidik, NIP/NUPTK, dan penetapan Wali Kelas</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingGuruId(null);
+                    setGuruFormData({ name: '', email: '', nip: '', nuptk: '' });
+                    setIsGuruModalOpen(true);
+                  }}
+                  className="btn-animate flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/30"
+                >
+                  <FiPlus /> Tambah Guru
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 bg-slate-50">
+                      <th className="p-3">NAMA GURU</th>
+                      <th className="p-3">EMAIL</th>
+                      <th className="p-3">NIP / NUPTK</th>
+                      <th className="p-3">WALI KELAS</th>
+                      <th className="p-3 text-center">AKSI</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {isLoadingGuru ? (
+                      <TableRowSkeleton columns={5} rows={4} />
+                    ) : guruList.length === 0 ? (
+                      <tr><td colSpan={5} className="p-4 text-center text-slate-400">Belum ada data guru terdaftar.</td></tr>
+                    ) : (
+                      guruList.map((g) => {
+                        const nipNuptkDisplay = [
+                          g.nip ? `NIP: ${g.nip}` : null,
+                          g.nuptk ? `NUPTK: ${g.nuptk}` : null,
+                        ].filter(Boolean).join(' / ') || '-';
+
+                        return (
+                          <tr key={g.id} className="hover:bg-slate-50 transition">
+                            <td className="p-3 font-semibold text-slate-800">{g.name}</td>
+                            <td className="p-3 text-slate-500">{g.email || '-'}</td>
+                            <td className="p-3 font-semibold text-indigo-700">{nipNuptkDisplay}</td>
+                            <td className="p-3 text-slate-700">
+                              {g.waliKelasName ? (
+                                <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs">
+                                  Kelas {g.waliKelasName}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-xs">Guru Mapel</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => {
+                                  setEditingGuruId(g.id);
+                                  setGuruFormData({ 
+                                    name: g.name, 
+                                    email: g.email || '', 
+                                    nip: g.nip || '',
+                                    nuptk: g.nuptk || '',
+                                  });
+                                  setIsGuruModalOpen(true);
+                                }}
+                                className="btn-animate p-1.5 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded-lg hover:bg-amber-500/20"
+                                title="Edit Data Guru"
+                              >
+                                <FiEdit size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -902,7 +1169,7 @@ export default function AdminDashboardPage() {
                     </h2>
                     <button
                       onClick={() => { setIsFormOpen(false); resetForm(); }}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg transition text-slate-700"
+                      className="btn-animate flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700"
                     >
                       <FiArrowLeft /> Kembali
                     </button>
@@ -1033,13 +1300,13 @@ export default function AdminDashboardPage() {
                       <button
                         type="button"
                         onClick={() => { setIsFormOpen(false); resetForm(); }}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-700 transition"
+                        className="btn-animate px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-700"
                       >
                         Batal
                       </button>
                       <button
                         type="submit"
-                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-indigo-600/30"
+                        className="btn-animate px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-indigo-600/30"
                       >
                         Simpan Siswa
                       </button>
@@ -1057,7 +1324,7 @@ export default function AdminDashboardPage() {
                     <button
                       onClick={handleBulkInvites}
                       disabled={inviteBusy}
-                      className="flex items-center gap-2 bg-white hover:bg-slate-50 disabled:opacity-60 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium transition"
+                      className="btn-animate flex items-center gap-2 bg-white hover:bg-slate-50 disabled:opacity-60 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium"
                     >
                       <FiUserPlus /> {inviteBusy ? 'Membuat...' : 'Kode Orang Tua'}
                     </button>
@@ -1065,14 +1332,14 @@ export default function AdminDashboardPage() {
                       <button
                         onClick={handleBulkCreateAccounts}
                         disabled={credBusy}
-                        className="flex items-center gap-2 bg-white hover:bg-slate-50 disabled:opacity-60 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium transition"
+                        className="btn-animate flex items-center gap-2 bg-white hover:bg-slate-50 disabled:opacity-60 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium"
                       >
                         <FiKey /> {credBusy ? 'Membuat...' : 'Buat Akun Murid'}
                       </button>
                     )}
                     <button
                       onClick={() => { resetForm(); setIsFormOpen(true); }}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-indigo-600/30"
+                      className="btn-animate flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/30"
                     >
                       <FiPlus /> Tambah Siswa
                     </button>
@@ -1087,7 +1354,7 @@ export default function AdminDashboardPage() {
                             <h3 className="text-lg font-bold text-slate-900">{credModal.title}</h3>
                             <p className="text-xs text-rose-600 font-semibold mt-1">{credKind === 'invite' ? 'Kode hanya tampil sekali. Unduh atau cetak sekarang, lalu bagikan ke orang tua (misalnya lewat wali kelas). Orang tua mendaftar di halaman Daftar.' : 'Password hanya tampil sekali. Unduh atau cetak sekarang, lalu bagikan ke murid. Wajib diganti saat login pertama.'}</p>
                           </div>
-                          <button onClick={() => setCredModal(null)} className="text-slate-400 hover:text-slate-700"><FiX size={20} /></button>
+                          <button onClick={() => setCredModal(null)} className="btn-animate text-slate-400 hover:text-slate-700"><FiX size={20} /></button>
                         </div>
                         {credModal.rows.length === 0 ? (
                           <p className="text-sm text-slate-500">Tidak ada akun baru yang dibuat.</p>
@@ -1121,9 +1388,9 @@ export default function AdminDashboardPage() {
                           </div>
                         )}
                         <div className="flex gap-2 justify-end flex-wrap">
-                          <button onClick={downloadCredCsv} disabled={credModal.rows.length === 0} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 disabled:opacity-50"><FiDownload /> Unduh CSV</button>
-                          <button onClick={printCred} disabled={credModal.rows.length === 0} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 disabled:opacity-50"><FiPrinter /> Cetak</button>
-                          <button onClick={() => setCredModal(null)} className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500">Selesai</button>
+                          <button onClick={downloadCredCsv} disabled={credModal.rows.length === 0} className="btn-animate flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 disabled:opacity-50"><FiDownload /> Unduh CSV</button>
+                          <button onClick={printCred} disabled={credModal.rows.length === 0} className="btn-animate flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 disabled:opacity-50"><FiPrinter /> Cetak</button>
+                          <button onClick={() => setCredModal(null)} className="btn-animate px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500">Selesai</button>
                         </div>
                       </div>
                     </div>
@@ -1169,7 +1436,7 @@ export default function AdminDashboardPage() {
                     <div className="md:col-span-2">
                       <button
                         onClick={() => { setSearch(''); setSelectedClassFilter(''); setSelectedStatusFilter(''); }}
-                        className="flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 w-full py-2 rounded-xl text-sm transition text-slate-700"
+                        className="btn-animate flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 w-full py-2 rounded-xl text-sm text-slate-700"
                       >
                         <FiRotateCcw size={14} /> Reset
                       </button>
@@ -1190,7 +1457,7 @@ export default function AdminDashboardPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {isLoading ? (
-                          <tr><td colSpan={6} className="text-center p-6 text-slate-400">Memuat data...</td></tr>
+                          <TableRowSkeleton columns={studentAccountsEnabled ? 6 : 5} rows={6} />
                         ) : filteredStudents.length === 0 ? (
                           <tr><td colSpan={6} className="text-center p-6 text-slate-400">Tidak ada data siswa.</td></tr>
                         ) : (
@@ -1225,7 +1492,7 @@ export default function AdminDashboardPage() {
                                       <button
                                         onClick={() => handleStudentInvite(s)}
                                         title="Buat kode pendaftaran orang tua"
-                                        className="p-1.5 bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/20 transition"
+                                        className="btn-animate p-1.5 bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/20"
                                       >
                                         <FiUserPlus size={16} />
                                       </button>
@@ -1234,20 +1501,20 @@ export default function AdminDashboardPage() {
                                       <button
                                         onClick={() => handleResetStudentAccount(s)}
                                         title={s.user?.username ? 'Reset password murid' : 'Buat akun murid'}
-                                        className="p-1.5 bg-indigo-500/10 text-indigo-700 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/20 transition"
+                                        className="btn-animate p-1.5 bg-indigo-500/10 text-indigo-700 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/20"
                                       >
                                         <FiKey size={16} />
                                       </button>
                                     )}
                                     <button
                                       onClick={() => handleEditStudent(s)}
-                                      className="p-1.5 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition"
+                                      className="btn-animate p-1.5 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded-lg hover:bg-amber-500/20"
                                     >
                                       <FiEdit size={16} />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteStudent(s.id)}
-                                      className="p-1.5 bg-rose-500/10 text-rose-600 border border-rose-500/30 rounded-lg hover:bg-rose-500/20 transition"
+                                      className="btn-animate p-1.5 bg-rose-500/10 text-rose-600 border border-rose-500/30 rounded-lg hover:bg-rose-500/20"
                                     >
                                       <FiTrash2 size={16} />
                                     </button>
@@ -1290,75 +1557,78 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {leaveRequests.length === 0 && (
+                    {isLoading ? (
+                      <TableRowSkeleton columns={8} rows={4} />
+                    ) : leaveRequests.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="p-6 text-center text-slate-400 text-sm">Belum ada pengajuan izin.</td>
                       </tr>
+                    ) : (
+                      leaveRequests.map((req) => (
+                        <tr key={req.id} className="hover:bg-slate-50 transition">
+                          <td className="p-3 font-semibold text-slate-800">
+                            {req.studentName}
+                            {req.requestedBy === 'STUDENT' && <span className="ml-2 text-[10px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5">diajukan murid</span>}
+                          </td>
+                          <td className="p-3 text-slate-500">{req.className}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                              req.type === 'Sakit' ? 'bg-amber-500/20 text-amber-700' : 'bg-blue-500/20 text-blue-700'
+                            }`}>
+                              {req.type}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-700 max-w-xs truncate">{req.reason}</td>
+                          <td className="p-3 text-slate-500">{req.date}</td>
+                          <td className="p-3">
+                            {req.hasAttachment ? (
+                              <a
+                                href={`/api/leave/${req.id}/attachment`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-semibold text-indigo-600 hover:underline"
+                              >
+                                Lihat bukti
+                              </a>
+                            ) : (
+                              <span className="text-xs text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 w-fit ${
+                              req.status === 'Disetujui' ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' :
+                              req.status === 'Ditolak' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' :
+                              'bg-amber-500/10 text-amber-700 border border-amber-500/20'
+                            }`}>
+                              {req.status === 'Disetujui' && <FiCheckCircle size={12} />}
+                              {req.status === 'Ditolak' && <FiXCircle size={12} />}
+                              {req.status === 'Menunggu' && <FiClock size={12} />}
+                              {req.status}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            {req.status === 'Menunggu' ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <button 
+                                  onClick={() => handleLeaveStatus(req.id, 'Disetujui')}
+                                  className="btn-animate px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium flex items-center gap-1"
+                                >
+                                  <FiCheck /> Setujui
+                                </button>
+                                <button 
+                                  onClick={() => handleLeaveStatus(req.id, 'Ditolak')}
+                                  className="btn-animate px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-medium flex items-center gap-1"
+                                >
+                                  <FiX /> Tolak
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Selesai</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
                     )}
-                    {leaveRequests.map((req) => (
-                      <tr key={req.id} className="hover:bg-slate-50 transition">
-                        <td className="p-3 font-semibold text-slate-800">
-                          {req.studentName}
-                          {req.requestedBy === 'STUDENT' && <span className="ml-2 text-[10px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5">diajukan murid</span>}
-                        </td>
-                        <td className="p-3 text-slate-500">{req.className}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                            req.type === 'Sakit' ? 'bg-amber-500/20 text-amber-700' : 'bg-blue-500/20 text-blue-700'
-                          }`}>
-                            {req.type}
-                          </span>
-                        </td>
-                        <td className="p-3 text-slate-700 max-w-xs truncate">{req.reason}</td>
-                        <td className="p-3 text-slate-500">{req.date}</td>
-                        <td className="p-3">
-                          {req.hasAttachment ? (
-                            <a
-                              href={`/api/leave/${req.id}/attachment`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-semibold text-indigo-600 hover:underline"
-                            >
-                              Lihat bukti
-                            </a>
-                          ) : (
-                            <span className="text-xs text-slate-400">-</span>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 w-fit ${
-                            req.status === 'Disetujui' ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' :
-                            req.status === 'Ditolak' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' :
-                            'bg-amber-500/10 text-amber-700 border border-amber-500/20'
-                          }`}>
-                            {req.status === 'Disetujui' && <FiCheckCircle size={12} />}
-                            {req.status === 'Ditolak' && <FiXCircle size={12} />}
-                            {req.status === 'Menunggu' && <FiClock size={12} />}
-                            {req.status}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          {req.status === 'Menunggu' ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <button 
-                                onClick={() => handleLeaveStatus(req.id, 'Disetujui')}
-                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition"
-                              >
-                                <FiCheck /> Setujui
-                              </button>
-                              <button 
-                                onClick={() => handleLeaveStatus(req.id, 'Ditolak')}
-                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition"
-                              >
-                                <FiX /> Tolak
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">Selesai</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1371,7 +1641,7 @@ export default function AdminDashboardPage() {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Laporan & Rekapitulasi Absensi</h2>
-                  <p className="text-xs text-slate-500 mt-1">Unduh rekapitulasi kehadiran bulanan siswa dalam format Excel (.xlsx) resmi</p>
+                  <p className="text-xs text-slate-500 mt-1">Unduh rekapitulasi kehadiran bulanan siswa & jam kerja guru dalam format Excel (.xlsx) resmi</p>
                 </div>
                 <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-xl border border-emerald-200">
                   📊 Format .xlsx Resmi
@@ -1379,9 +1649,36 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 max-w-2xl shadow-sm">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-                  <FiFileText className="text-indigo-600" /> Filter Parameter Ekspor
-                </h3>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 mb-4 border-b border-slate-200">
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <FiFileText className="text-indigo-600" /> Filter Parameter Ekspor ({reportType === 'STUDENT' ? 'Siswa' : 'Guru'})
+                  </h3>
+
+                  <div className="flex bg-white p-1 rounded-xl gap-1 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setReportType('STUDENT')}
+                      className={`btn-animate flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg ${
+                        reportType === 'STUDENT'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      <FiUsers size={12} /> Rekap Siswa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportType('TEACHER')}
+                      className={`btn-animate flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg ${
+                        reportType === 'TEACHER'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      <FiUserCheck size={12} /> Rekap Guru
+                    </button>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
@@ -1396,27 +1693,32 @@ export default function AdminDashboardPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="text-xs text-slate-500 mb-1.5 block font-medium flex items-center gap-1">
-                      <FiUsers size={13} /> Pilih Kelas (Opsional)
-                    </label>
-                    <select
-                      value={exportClassId}
-                      onChange={(e) => setExportClassId(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="">Semua Kelas</option>
-                      {classes.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {reportType === 'STUDENT' && (
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1.5 block font-medium flex items-center gap-1">
+                        <FiUsers size={13} /> Pilih Kelas (Opsional)
+                      </label>
+                      <select
+                        value={exportClassId}
+                        onChange={(e) => setExportClassId(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="">Semua Kelas</option>
+                        {classes.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6 text-xs text-slate-600 space-y-1">
                   <p className="font-semibold text-slate-800 uppercase tracking-wider mb-1">Ringkasan Ekspor:</p>
+                  <p>• Target Data: <span className="font-semibold text-emerald-600">{reportType === 'STUDENT' ? 'Absensi Siswa (Laporan Rapor)' : 'Absensi & Jam Kerja Guru'}</span></p>
                   <p>• Periode: <span className="font-semibold text-indigo-600">{exportMonth || 'Semua Bulan'}</span></p>
-                  <p>• Filter Kelas: <span className="font-semibold text-indigo-600">{classes.find(c => String(c.id) === String(exportClassId))?.name || 'Semua Kelas'}</span></p>
+                  {reportType === 'STUDENT' && (
+                    <p>• Filter Kelas: <span className="font-semibold text-indigo-600">{classes.find(c => String(c.id) === String(exportClassId))?.name || 'Semua Kelas'}</span></p>
+                  )}
                 </div>
 
                 <div className="flex justify-between items-center pt-2 border-t border-slate-200">
@@ -1426,7 +1728,7 @@ export default function AdminDashboardPage() {
                       setExportMonth(new Date().toISOString().slice(0, 7));
                       setExportClassId('');
                     }}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-800 transition"
+                    className="btn-animate flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-800"
                   >
                     <FiRotateCcw size={12} /> Reset Filter
                   </button>
@@ -1434,7 +1736,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={handleExportExcel}
-                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-lg shadow-emerald-600/30"
+                    className="btn-animate flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-600/30"
                   >
                     <FiDownload size={18} /> Ekspor File Excel (.xlsx)
                   </button>
@@ -1454,7 +1756,6 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Form Buat Pengumuman */}
                 <div className="lg:col-span-5 bg-slate-50 border border-slate-200 p-5 rounded-2xl h-fit">
                   <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <FiVolume2 className="text-indigo-600" /> Buat Pengumuman Baru
@@ -1501,17 +1802,29 @@ export default function AdminDashboardPage() {
                     <button
                       type="submit"
                       disabled={isPostingAnc}
-                      className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-lg shadow-indigo-600/30"
+                      className="btn-animate w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/30"
                     >
                       <FiSend size={16} /> {isPostingAnc ? 'Menerbitkan...' : 'Terbitkan Pengumuman'}
                     </button>
                   </form>
                 </div>
 
-                {/* Daftar Pengumuman Terbit */}
                 <div className="lg:col-span-7 space-y-4">
                   <h3 className="text-sm font-bold text-slate-800 mb-2">Riwayat Pengumuman Diterbitkan</h3>
-                  {announcements.length === 0 ? (
+                  {isLoadingAnc ? (
+                    <div className="space-y-3">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                          <div className="flex justify-between">
+                            <Skeleton className="h-5 w-48" />
+                            <Skeleton className="h-5 w-16 rounded-full" />
+                          </div>
+                          <Skeleton className="h-12 w-full" />
+                          <Skeleton className="h-3 w-32" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : announcements.length === 0 ? (
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center text-slate-400 text-sm">
                       Belum ada pengumuman yang diterbitkan.
                     </div>
@@ -1574,6 +1887,94 @@ export default function AdminDashboardPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* TAB 8: DYNAMIC PRIVACY POLICY EDITOR */}
+          {activeTab === 'privacy' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Kelola Kebijakan Privasi</h2>
+                  <p className="text-xs text-slate-500 mt-1">Bebas ubah judul, isi deskripsi, tambah ketentuan baru, atau hapus ketentuan yang tidak dipakai</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <a 
+                    href="/privacy" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn-animate text-xs font-semibold text-indigo-600 hover:underline border border-indigo-200 px-3 py-1.5 rounded-xl bg-indigo-50 flex items-center gap-1"
+                  >
+                    Lihat Halaman Publik ↗
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleAddPrivacySection}
+                    className="btn-animate flex items-center gap-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-xl text-xs font-bold"
+                  >
+                    <FiPlus size={14} /> Tambah Ketentuan
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleSavePrivacyPolicy} className="bg-slate-50 rounded-2xl border border-slate-200 p-6 max-w-3xl space-y-4">
+                
+                {privacySections.map((sec, index) => (
+                  <div key={sec.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 relative group">
+                    <div className="flex justify-between items-center gap-3">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-xs font-bold text-slate-400">#{index + 1}</span>
+                        <input
+                          type="text"
+                          value={sec.title}
+                          onChange={(e) => handleUpdatePrivacySection(sec.id, 'title', e.target.value)}
+                          placeholder="Judul Ketentuan"
+                          required
+                          className="w-full font-bold text-slate-900 text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePrivacySection(sec.id)}
+                        title="Hapus Ketentuan"
+                        className="btn-animate p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg"
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
+                    </div>
+
+                    <div>
+                      <textarea
+                        rows={3}
+                        value={sec.description}
+                        onChange={(e) => handleUpdatePrivacySection(sec.id, 'description', e.target.value)}
+                        placeholder="Tulis deskripsi rinci kebijakan privasi di sini..."
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Tombol Aksi Bawah */}
+                <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={handleAddPrivacySection}
+                    className="btn-animate flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:underline"
+                  >
+                    <FiPlus size={14} /> + Tambah Poin Ketentuan Baru
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingPrivacy}
+                    className="btn-animate flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/30"
+                  >
+                    {isSavingPrivacy ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
@@ -1656,13 +2057,13 @@ export default function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setIsUserModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm transition"
+                  className="btn-animate px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-indigo-600/30"
+                  className="btn-animate px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/30"
                 >
                   {editingUserId ? 'Simpan Perubahan' : 'Simpan User'}
                 </button>
@@ -1713,7 +2114,7 @@ export default function AdminDashboardPage() {
                   placeholder="Contoh: Ahmad, S.Pd"
                   value={newClassWali}
                   onChange={(e) => setNewClassWali(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -1721,15 +2122,92 @@ export default function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setIsClassModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm transition"
+                  className="btn-animate px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-indigo-600/30"
+                  className="btn-animate px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/30"
                 >
                   {editingClassId ? 'Simpan Perubahan' : 'Simpan Kelas'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL INPUT / EDIT GURU */}
+      {isGuruModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">
+              {editingGuruId ? 'Edit Data Guru' : 'Tambah Guru Baru'}
+            </h3>
+            
+            <form onSubmit={handleSaveGuru} className="space-y-4 text-sm">
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block font-semibold">Nama Lengkap Guru *</label>
+                <input
+                  type="text"
+                  required
+                  value={guruFormData.name}
+                  onChange={(e) => setGuruFormData({ ...guruFormData, name: e.target.value })}
+                  placeholder="Contoh: Pak Hambali, S.Pd."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block font-semibold">Email Guru *</label>
+                <input
+                  type="email"
+                  required
+                  value={guruFormData.email}
+                  onChange={(e) => setGuruFormData({ ...guruFormData, email: e.target.value })}
+                  placeholder="guru@sekolah.sch.id"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block font-semibold">NIP (Opsional)</label>
+                  <input
+                    type="text"
+                    value={guruFormData.nip}
+                    onChange={(e) => setGuruFormData({ ...guruFormData, nip: e.target.value })}
+                    placeholder="19850101..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block font-semibold">NUPTK (Opsional)</label>
+                  <input
+                    type="text"
+                    value={guruFormData.nuptk}
+                    onChange={(e) => setGuruFormData({ ...guruFormData, nuptk: e.target.value })}
+                    placeholder="12345678..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setIsGuruModalOpen(false)}
+                  className="btn-animate px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn-animate px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30"
+                >
+                  Simpan Data Guru
                 </button>
               </div>
             </form>

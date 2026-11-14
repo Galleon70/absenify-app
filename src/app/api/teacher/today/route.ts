@@ -1,3 +1,4 @@
+// src/app/api/teacher/today/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { guard, serverError } from '@/lib/guard';
@@ -11,6 +12,7 @@ export async function GET() {
 
   try {
     const today = nowInSchoolTz();
+
     const [classes, students, attendance, leaves] = await Promise.all([
       db.classRoom.findMany({
         where: { schoolId: user.schoolId },
@@ -36,11 +38,21 @@ export async function GET() {
       }),
     ]);
 
+    // Cari nama kelas jika guru ini terdaftar sebagai wali kelas
+    const managedClass = classes.find(
+      (c) => c.waliKelas && c.waliKelas.trim().toLowerCase() === user.name.trim().toLowerCase()
+    );
+
     return NextResponse.json({
       success: true,
       data: {
         today,
-        me: { name: user.name },
+        me: {
+          name: user.name,
+          email: user.email || null,
+          nip: (user as any).nip || null,
+          waliKelasName: managedClass?.name || null,
+        },
         classes,
         students: students
           .filter((s) => (s.status || 'Aktif').toLowerCase().startsWith('aktif'))

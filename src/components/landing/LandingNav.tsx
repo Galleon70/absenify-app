@@ -1,3 +1,4 @@
+// src/components/landing/LandingNav.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -10,7 +11,6 @@ export const NAV: [string, string][] = [
   ['tanya-jawab', 'FAQ'],
 ];
 
-// Loncat halus ke bagian halaman tanpa mengubah URL (alamat tetap bersih). Menghormati pengaturan "kurangi animasi".
 function goTo(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -19,11 +19,12 @@ function goTo(id: string) {
   window.history.replaceState(null, '', window.location.pathname);
 }
 
-export function SmoothLink({ id, className, children }: { id: string; className?: string; children: React.ReactNode }) {
+export function SmoothLink({ id, className, children, style }: { id: string; className?: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <a
       href={`#${id}`}
       className={className}
+      style={style}
       onClick={(e) => {
         e.preventDefault();
         goTo(id);
@@ -34,7 +35,6 @@ export function SmoothLink({ id, className, children }: { id: string; className?
   );
 }
 
-// Menu atas: menandai bagian yang sedang dilihat dengan garis bawah beranimasi.
 export default function NavLinks({ variant }: { variant: 'desktop' | 'mobile' }) {
   const [active, setActive] = useState('');
 
@@ -50,23 +50,53 @@ export default function NavLinks({ variant }: { variant: 'desktop' | 'mobile' })
     return () => obs.disconnect();
   }, []);
 
-  const base =
-    'relative font-semibold transition-colors duration-200 active:scale-95 after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:bg-indigo-600 after:transition-all after:duration-300';
+  if (variant === 'desktop') {
+    return (
+      <nav aria-label="Menu halaman" className="hidden lg:flex items-center gap-5 text-xs font-semibold">
+        {NAV.map(([id, label]) => {
+          const isActive = active === id;
+          return (
+            <SmoothLink
+              key={id}
+              id={id}
+              style={{
+                color: isActive ? '#fcd34d' : '#ffffff',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              }}
+              className="transition-all hover:opacity-75 whitespace-nowrap"
+            >
+              {label}
+            </SmoothLink>
+          );
+        })}
+      </nav>
+    );
+  }
 
+  // Mobile horizontal scroll pill
   return (
     <nav
-      aria-label="Menu halaman"
-      className={variant === 'desktop' ? 'hidden md:flex items-center gap-7 text-sm' : 'md:hidden flex items-center gap-6 text-sm overflow-x-auto px-4 pb-3'}
+      aria-label="Menu halaman mobile"
+      className="flex md:hidden items-center gap-1.5 overflow-x-auto py-1 scrollbar-none"
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {NAV.map(([id, label]) => (
-        <SmoothLink
-          key={id}
-          id={id}
-          className={`${base} whitespace-nowrap ${active === id ? 'text-indigo-700 after:w-full' : 'text-gray-600 hover:text-indigo-700 after:w-0 hover:after:w-full'}`}
-        >
-          {label}
-        </SmoothLink>
-      ))}
+      {NAV.map(([id, label]) => {
+        const isActive = active === id;
+        return (
+          <SmoothLink
+            key={id}
+            id={id}
+            style={{
+              color: isActive ? '#0f172a' : '#ffffff',
+            }}
+            className={`whitespace-nowrap text-[11px] font-bold px-3 py-1 rounded-full transition-all shrink-0 ${
+              isActive ? 'bg-amber-300 shadow-sm' : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            {label}
+          </SmoothLink>
+        );
+      })}
     </nav>
   );
 }

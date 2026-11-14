@@ -1,13 +1,14 @@
 // src/app/page.tsx  -- Halaman publik (boleh diindeks Google). Aplikasi ada di /login.
 import type { Metadata } from 'next';
-import { BarChart3, Check, ChevronDown, ClipboardCheck, Mail, MessageCircle, School, ShieldCheck, Smartphone, Star, Users, FileCheck2, Lock } from 'lucide-react';
+import { BarChart3, Check, ChevronDown, ClipboardCheck, Mail, MessageCircle, School, ShieldCheck, Smartphone, Star, Users, FileCheck2, Lock, Shield } from 'lucide-react';
 import { FAQ, SITE, mailLink, waLink } from '@/lib/site-config';
 import DemoForm from '@/components/landing/DemoForm';
-import NavLinks, { SmoothLink } from '@/components/landing/LandingNav';
+import NavLinks from '@/components/landing/LandingNav';
 import HeroCarousel, { PhotoSlide } from '@/components/landing/HeroCarousel';
 import PackageFinder from '@/components/landing/PackageFinder';
 import ModeCards, { type ModeItem } from '@/components/landing/ModeCards';
-import { SCENES, SceneDashboard } from '@/components/landing/Scenes';
+import { SCENES } from '@/components/landing/Scenes';
+import { StatScene } from '@/components/landing/StatScene';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -44,9 +45,36 @@ const roles = [
 ];
 
 const modes: ModeItem[] = [
-  { id: 1, name: 'Mode 1', sub: 'Dasar', badge: 'Dasar', body: 'Guru, orang tua, admin, dan kepala sekolah. Murid hanya sebagai data.', chips: ['4 peran', 'Tanpa akun murid'], points: ['Presensi harian', 'Izin orang tua dengan bukti', 'Dashboard kepala sekolah'], href: waLink('Halo, saya tertarik dengan Mode 1 (Dasar). Boleh minta penawaran?') },
-  { id: 2, name: 'Mode 2', sub: 'Murid melihat rekap', badge: 'Menengah', body: 'Cocok untuk sekolah yang melarang murid membawa HP.', chips: ['5 peran', 'Akun murid'], points: ['Semua fitur Mode 1', 'Login murid memakai NISN', 'Murid melihat rekap kehadirannya'], href: waLink('Halo, saya tertarik dengan Mode 2 (Murid melihat rekap). Boleh minta penawaran?') },
-  { id: 3, name: 'Mode 3', sub: 'Absen QR', badge: 'Lengkap', body: 'Untuk sekolah yang membolehkan HP. Murid menunjukkan QR, petugas memindai.', chips: ['5 peran', 'QR + scanner'], points: ['Semua fitur Mode 2', 'QR berganti otomatis (anti titip absen)', 'Terlambat tercatat otomatis'], href: waLink('Halo, saya tertarik dengan Mode 3 (Absen QR). Boleh minta penawaran?') },
+  {
+    id: 1,
+    name: 'Mode 1',
+    sub: 'Dasar (SD / MI)',
+    badge: 'Dasar',
+    body: 'Cocok untuk SD / MI atau sekolah yang fokus pada absensi oleh guru & pantauan penuh orang tua (murid tidak perlu akun login).',
+    chips: ['4 peran', 'Tanpa akun murid'],
+    points: ['Presensi harian oleh guru', 'Izin orang tua dengan bukti', 'Dashboard kepala sekolah'],
+    href: waLink('Halo, saya tertarik dengan Mode 1 (Dasar). Boleh minta penawaran?'),
+  },
+  {
+    id: 2,
+    name: 'Mode 2',
+    sub: 'Menengah (SMP / SMA / Pesantren)',
+    badge: 'Menengah',
+    body: 'Cocok untuk sekolah yang melarang HP di kelas, tapi murid tetap bisa cek rekap kehadiran & ajukan izin dari rumah.',
+    chips: ['5 peran', 'Akun murid'],
+    points: ['Semua fitur Mode 1', 'Login murid memakai NISN', 'Murid melihat rekap kehadirannya'],
+    href: waLink('Halo, saya tertarik dengan Mode 2 (Murid melihat rekap). Boleh minta penawaran?'),
+  },
+  {
+    id: 3,
+    name: 'Mode 3',
+    sub: 'Lengkap (SMA / SMK Modern)',
+    badge: 'Lengkap',
+    body: 'Cocok untuk sekolah yang membolehkan HP. Murid memindai QR dinamis saat datang dan terlambat tercatat otomatis.',
+    chips: ['5 peran', 'QR + scanner'],
+    points: ['Semua fitur Mode 2', 'QR berganti otomatis (anti titip absen)', 'Terlambat tercatat otomatis'],
+    href: waLink('Halo, saya tertarik dengan Mode 3 (Absen QR). Boleh minta penawaran?'),
+  },
 ];
 
 const steps = [
@@ -61,6 +89,7 @@ const security = [
   'Hak akses dibedakan per peran',
   'Data setiap sekolah terpisah',
   'QR murid berubah otomatis dan tidak bisa dipakai ulang dari screenshot',
+  'Pencadangan data harian otomatis untuk mencegah kehilangan rekap absensi',
 ];
 
 const jsonLd = [
@@ -69,7 +98,6 @@ const jsonLd = [
 ];
 
 export default function LandingPage() {
-  // Slide hero: foto sendiri (heroImages) atau ilustrasi bawaan
   const slides =
     SITE.heroImages.length > 0
       ? SITE.heroImages.map((src, k) => {
@@ -84,29 +112,42 @@ export default function LandingPage() {
         <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(d) }} />
       ))}
 
-      {/* Navigasi */}
-      <div className="fixed top-0 inset-x-0 z-30 pt-3 px-3 sm:px-4 pointer-events-none">
-        <header className="pointer-events-auto max-w-6xl mx-auto rounded-2xl bg-white/90 backdrop-blur shadow-sm border border-indigo-50">
-          <div className="px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-            <a href="/" className="flex items-center gap-2 font-black text-lg text-indigo-800">
-              <span className="w-9 h-9 rounded-xl bg-indigo-700 text-white flex items-center justify-center"><School className="w-5 h-5" /></span>
-              {SITE.name}
+      {/* Floating Island Header Transparan Tunggal */}
+      <div className="fixed top-4 inset-x-0 z-30 px-3 pointer-events-none flex justify-center">
+        <header className="pointer-events-auto w-full max-w-4xl rounded-3xl bg-slate-950/45 backdrop-blur-xl shadow-2xl border border-white/20 px-5 py-3 flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-4">
+            <a href="/" className="btn-animate flex items-center gap-2 font-black text-sm sm:text-base text-white shrink-0">
+              <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center p-1 overflow-hidden shadow-inner">
+                <img
+                  src="/logo.jpg"
+                  alt="Absenify Logo"
+                  className="w-full h-full object-cover scale-[1.33]"
+                />
+              </span>
+              <span>{SITE.name}</span>
             </a>
-            <NavLinks variant="desktop" />
-            <div className="flex items-center gap-2">
-              <a href="/login" className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-700 text-sm font-bold hover:bg-indigo-50 active:scale-95 transition">Masuk</a>
-              <a href={waLink()} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-block px-4 py-2 rounded-xl bg-indigo-950 text-white text-sm font-bold hover:bg-indigo-900 active:scale-95 transition">Minta Demo</a>
+            
+            <div className="hidden md:block">
+              <NavLinks variant="desktop" />
+            </div>
+            
+            <div className="flex items-center gap-2 shrink-0">
+              <a href="/login" className="btn-animate px-3.5 py-1.5 rounded-full border border-white/25 text-white text-xs sm:text-sm font-bold hover:bg-white/15 transition">
+                Masuk
+              </a>
             </div>
           </div>
-          <NavLinks variant="mobile" />
+          
+          <div className="md:hidden pt-1 border-t border-white/10 flex justify-center overflow-x-auto scrollbar-none">
+            <NavLinks variant="mobile" />
+          </div>
         </header>
       </div>
 
       <main>
-        {/* Hero: gambar penuh selebar layar (slideshow), warna asli dengan lapisan gelap tipis, kotak cari paket di dalamnya */}
+        {/* Hero Section */}
         <section className="relative w-full min-h-[700px] sm:min-h-[760px] flex flex-col overflow-hidden bg-slate-800">
           <HeroCarousel slides={slides} intervalMs={SITE.heroIntervalMs} />
-          {/* Lapisan gelap agar teks putih terbaca. Atur tebalnya lewat SCRIM di atas file ini (0 = tanpa lapisan, 0.9 = sangat gelap). */}
           <div aria-hidden="true" className="absolute inset-0 pointer-events-none sm:hidden" style={{ background: `linear-gradient(to bottom, rgba(15,23,42,${SCRIM}), rgba(15,23,42,${SCRIM * 0.55}))` }} />
           <div aria-hidden="true" className="absolute inset-0 pointer-events-none hidden sm:block" style={{ background: `linear-gradient(to right, rgba(15,23,42,${SCRIM}), rgba(15,23,42,${SCRIM * 0.5}) 55%, rgba(15,23,42,${SCRIM * 0.12}))` }} />
 
@@ -123,10 +164,9 @@ export default function LandingPage() {
                 Guru mencatat kehadiran, orang tua mengajukan izin lengkap dengan bukti, kepala sekolah memantau ringkasan. Cukup dari HP.
               </p>
               <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <a href={waLink()} target="_blank" rel="noopener noreferrer" className="min-h-11 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2">
-                  <MessageCircle className="w-4 h-4" /> Minta Demo
+                <a href={waLink()} target="_blank" rel="noopener noreferrer" className="btn-animate min-h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/20">
+                  <MessageCircle className="w-4 h-4" /> Minta Demo via WhatsApp
                 </a>
-                <SmoothLink id="fitur" className="min-h-11 px-5 bg-white/15 backdrop-blur border border-white/40 hover:bg-white/25 text-white font-bold text-sm rounded-xl flex items-center justify-center active:scale-95 transition">Lihat Fitur</SmoothLink>
               </div>
             </div>
           </div>
@@ -142,7 +182,7 @@ export default function LandingPage() {
         <section className="max-w-6xl mx-auto px-3 sm:px-4 mt-10">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {quick.map((q) => (
-              <div key={q.t} className="bg-white/80 rounded-2xl border border-indigo-50 shadow-sm p-4 flex items-start gap-3">
+              <div key={q.t} className="card-animate bg-white/80 rounded-2xl border border-indigo-50 shadow-sm p-4 flex items-start gap-3">
                 <span className="w-11 h-11 shrink-0 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center"><q.icon className="w-5 h-5" /></span>
                 <div>
                   <p className="text-sm font-bold">{q.t}</p>
@@ -153,7 +193,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Tentang */}
+        {/* Tentang (Menggunakan Grafik Statistik Kepala Sekolah di sisi kanan) */}
         <section id="tentang" className="scroll-mt-28 max-w-6xl mx-auto px-3 sm:px-4 mt-16 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div>
             <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase">Kenapa {SITE.name}</p>
@@ -162,15 +202,9 @@ export default function LandingPage() {
             <ul className="mt-5 space-y-3">
               {why.map((w) => (<li key={w} className="flex gap-3 text-sm text-gray-800"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5"><Check className="w-3 h-3" /></span>{w}</li>))}
             </ul>
-            <SmoothLink id="fitur" className="mt-7 inline-flex items-center min-h-11 px-6 rounded-xl bg-indigo-950 hover:bg-indigo-900 text-white text-sm font-bold active:scale-95 transition">Lihat Fitur</SmoothLink>
           </div>
-          <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-lg bg-indigo-100">
-            {SITE.aboutImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={SITE.aboutImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-              <SceneDashboard />
-            )}
+          <div className="card-animate relative rounded-3xl overflow-hidden aspect-[4/3] shadow-lg border border-slate-800">
+            <StatScene />
           </div>
         </section>
 
@@ -179,7 +213,7 @@ export default function LandingPage() {
           <h2 className="text-2xl sm:text-3xl font-black text-center">Satu aplikasi, empat peran</h2>
           <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {roles.map((r) => (
-              <div key={r.title} className="bg-white rounded-3xl border border-indigo-50 p-6 shadow-sm">
+              <div key={r.title} className="card-animate bg-white rounded-3xl border border-indigo-50 p-6 shadow-sm">
                 <span className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center"><r.icon className="w-5 h-5" /></span>
                 <h3 className="mt-3 font-bold">{r.title}</h3>
                 <ul className="mt-2 space-y-1.5 text-sm text-gray-600">
@@ -204,7 +238,7 @@ export default function LandingPage() {
           <h2 className="mt-1 text-2xl sm:text-3xl font-black text-center">Mulai dalam 3 langkah mudah</h2>
           <div className="mt-8 grid md:grid-cols-3 gap-5">
             {steps.map((s) => (
-              <div key={s.n} className="bg-white rounded-3xl border border-indigo-50 shadow-sm p-6 flex items-start gap-4">
+              <div key={s.n} className="card-animate bg-white rounded-3xl border border-indigo-50 shadow-sm p-6 flex items-start gap-4">
                 <span className="w-14 h-14 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center"><s.icon className="w-6 h-6" /></span>
                 <div>
                   <p className="text-xs font-black text-indigo-500">{s.n}</p>
@@ -220,33 +254,34 @@ export default function LandingPage() {
         <section id="keamanan" className="scroll-mt-28 max-w-4xl mx-auto px-3 sm:px-4 mt-20">
           <div className="flex items-center justify-center gap-2"><ShieldCheck className="w-6 h-6 text-indigo-600" /><h2 className="text-2xl sm:text-3xl font-black">Data siswa dijaga</h2></div>
           <ul className="mt-6 grid sm:grid-cols-2 gap-3">
-            {security.map((s) => (<li key={s} className="flex gap-2 rounded-2xl bg-white border border-indigo-50 p-4 text-sm text-gray-700"><Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />{s}</li>))}
+            {security.map((s) => (<li key={s} className="card-animate flex gap-2 rounded-2xl bg-white border border-indigo-50 p-4 text-sm text-gray-700"><Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />{s}</li>))}
           </ul>
         </section>
 
-        {/* Testimoni */}
-        <section className="max-w-6xl mx-auto px-3 sm:px-4 mt-20">
-          <h2 className="text-2xl sm:text-3xl font-black text-center">Kata mereka</h2>
-          <div className="mt-8 grid md:grid-cols-3 gap-5">
-            {SITE.testimonials.map((t, k) => {
-              const placeholder = t.quote.startsWith('[');
-              return (
-                <figure key={k} className={`rounded-3xl bg-white p-6 shadow-sm ${placeholder ? 'border-2 border-dashed border-gray-300' : 'border border-indigo-50'}`}>
-                  <div className="flex gap-0.5 text-amber-400">{[0, 1, 2, 3, 4].map((x) => <Star key={x} className="w-4 h-4 fill-current" />)}</div>
-                  <blockquote className="mt-3 text-sm text-gray-700">&ldquo;{t.quote}&rdquo;</blockquote>
-                  <figcaption className="mt-4 text-sm"><span className="font-bold">{t.name}</span><span className="block text-xs text-gray-500">{t.role}</span></figcaption>
-                </figure>
-              );
-            })}
-          </div>
-        </section>
+        {/* Testimoni (Otomatis disembunyikan jika belum ada testimoni asli) */}
+        {SITE.testimonials.some((t) => !t.quote.startsWith('[')) && (
+          <section className="max-w-6xl mx-auto px-3 sm:px-4 mt-20">
+            <h2 className="text-2xl sm:text-3xl font-black text-center">Kata mereka</h2>
+            <div className="mt-8 grid md:grid-cols-3 gap-5">
+              {SITE.testimonials
+                .filter((t) => !t.quote.startsWith('['))
+                .map((t, k) => (
+                  <figure key={k} className="card-animate rounded-3xl bg-white p-6 shadow-sm border border-indigo-50">
+                    <div className="flex gap-0.5 text-amber-400">{[0, 1, 2, 3, 4].map((x) => <Star key={x} className="w-4 h-4 fill-current" />)}</div>
+                    <blockquote className="mt-3 text-sm text-gray-700">&ldquo;{t.quote}&rdquo;</blockquote>
+                    <figcaption className="mt-4 text-sm"><span className="font-bold">{t.name}</span><span className="block text-xs text-gray-500">{t.role}</span></figcaption>
+                  </figure>
+                ))}
+            </div>
+          </section>
+        )}
 
         {/* FAQ */}
         <section id="tanya-jawab" className="scroll-mt-28 max-w-3xl mx-auto px-3 sm:px-4 mt-20">
           <h2 className="text-2xl sm:text-3xl font-black text-center">Pertanyaan yang sering diajukan (FAQ)</h2>
           <div className="mt-8 space-y-3">
             {FAQ.map((f) => (
-              <details key={f.q} className="group bg-white rounded-2xl border border-indigo-50 p-4">
+              <details key={f.q} className="card-animate group bg-white rounded-2xl border border-indigo-50 p-4">
                 <summary className="flex items-center justify-between gap-3 cursor-pointer font-bold text-sm list-none">
                   {f.q}
                   <ChevronDown className="w-4 h-4 text-gray-400 transition group-open:rotate-180 shrink-0" />
@@ -267,7 +302,7 @@ export default function LandingPage() {
                 <p className="mt-1 text-sm text-indigo-100">Isi data singkat di bawah, lalu kirim lewat WhatsApp. Kami akan menghubungi Anda.</p>
               </div>
             </div>
-            <a href={waLink()} target="_blank" rel="noopener noreferrer" className="min-h-12 px-6 rounded-xl bg-white text-indigo-800 font-bold text-sm flex items-center justify-center gap-2 shrink-0 hover:bg-indigo-50">
+            <a href={waLink()} target="_blank" rel="noopener noreferrer" className="btn-animate min-h-12 px-6 rounded-xl bg-white text-indigo-800 font-bold text-sm flex items-center justify-center gap-2 shrink-0 hover:bg-indigo-50">
               <MessageCircle className="w-4 h-4" /> Chat WhatsApp
             </a>
           </div>
@@ -278,10 +313,19 @@ export default function LandingPage() {
       <footer className="border-t border-indigo-100 bg-white/70">
         <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
           <p>&copy; {new Date().getFullYear()} {SITE.name}. {SITE.tagline}.</p>
-          <div className="flex items-center gap-4">
-            <a href={waLink()} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 font-semibold hover:text-indigo-700"><MessageCircle className="w-4 h-4" />WhatsApp</a>
-            <a href={mailLink()} className="flex items-center gap-1.5 font-semibold hover:text-indigo-700"><Mail className="w-4 h-4" />Email</a>
-            <a href="/login" className="font-semibold hover:text-indigo-700">Masuk ke aplikasi</a>
+          <div className="flex items-center gap-4 flex-wrap justify-center">
+            <a href="/privacy" className="flex items-center gap-1.5 font-semibold hover:text-indigo-700 transition">
+              <Shield className="w-4 h-4" />Privacy Policy
+            </a>
+            <a href={waLink()} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 font-semibold hover:text-indigo-700 transition">
+              <MessageCircle className="w-4 h-4" />WhatsApp
+            </a>
+            <a href={mailLink()} className="flex items-center gap-1.5 font-semibold hover:text-indigo-700 transition">
+              <Mail className="w-4 h-4" />Email
+            </a>
+            <a href="/login" className="font-semibold hover:text-indigo-700 transition">
+              Masuk ke aplikasi
+            </a>
           </div>
         </div>
       </footer>

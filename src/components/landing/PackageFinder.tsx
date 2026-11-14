@@ -1,3 +1,4 @@
+// src/components/landing/PackageFinder.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -14,23 +15,48 @@ export default function PackageFinder() {
   const find = (e: React.FormEvent) => {
     e.preventDefault();
     let mode = 1;
-    let note = 'Mode 1 cocok: guru mengabsen, orang tua mengajukan izin, kepala sekolah memantau.';
-    if (need === 'view') {
-      mode = 2;
-      note = 'Mode 2 cocok: seperti Mode 1, ditambah akun murid untuk melihat rekap kehadirannya.';
-    } else if (need === 'qr') {
+    let note = 'Mode 1 cocok: guru mengabsen, orang tua mengajukan izin, kepala sekolah memantau (praktis untuk SD/MI atau tanpa akun murid).';
+
+    if (need === 'qr') {
       if (hp === 'ya') {
         mode = 3;
         const scanners = size === 'small' ? 1 : size === 'mid' ? 2 : 3;
         note = `Mode 3 cocok: murid menunjukkan QR di HP, petugas memindai. Perkiraan kebutuhan: ${scanners} perangkat scanner di gerbang (perkiraan awal, disesuaikan saat demo).`;
       } else {
         mode = 2;
-        note = 'QR membutuhkan HP murid. Karena murid tidak boleh membawa HP, kami sarankan Mode 2 (murid melihat rekap).';
+        note = 'Absensi QR membutuhkan HP murid. Karena murid tidak boleh membawa HP, kami sarankan Mode 2 (murid tetap punya akun untuk melihat rekap dari rumah).';
+      }
+    } else if (need === 'view') {
+      if (hp === 'ya') {
+        mode = 3;
+        const scanners = size === 'small' ? 1 : size === 'mid' ? 2 : 3;
+        note = `Mode 3 cocok: karena murid boleh membawa HP, sekolah bisa sekaligus memakai absensi QR dinamis (perkiraan ${scanners} scanner) selain fitur rekap murid.`;
+      } else {
+        mode = 2;
+        note = 'Mode 2 cocok: murid tidak membawa HP ke kelas, namun tetap mendapat akun NISN untuk melihat rekap kehadirannya dari rumah.';
+      }
+    } else if (need === 'basic') {
+      if (hp === 'ya') {
+        mode = 3;
+        const scanners = size === 'small' ? 1 : size === 'mid' ? 2 : 3;
+        note = `Mode 3 direkomendasikan: karena murid boleh membawa HP, absensi QR mandiri (perkiraan ${scanners} scanner) jauh lebih cepat dibanding absen manual guru.`;
+      } else if (size === 'big') {
+        mode = 2;
+        note = 'Mode 2 direkomendasikan: untuk sekolah dengan lebih dari 800 murid tanpa HP di kelas, akun rekap mandiri membantu mengurangi antrean pertanyaan ke wali kelas.';
+      } else {
+        mode = 1;
+        note = 'Mode 1 cocok: guru mengabsen, orang tua mengajukan izin, kepala sekolah memantau tanpa perlu mengelola akun login murid.';
       }
     }
+
     window.dispatchEvent(new CustomEvent('pick-mode', { detail: { mode, note } }));
     const el = document.getElementById('paket');
-    if (el) el.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    if (el) {
+      el.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start',
+      });
+    }
   };
 
   return (
@@ -58,7 +84,7 @@ export default function PackageFinder() {
           <option value="big">Lebih dari 800</option>
         </select>
       </label>
-      <button type="submit" className="min-h-12 px-8 rounded-full bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition">
+      <button type="submit" className="btn-animate min-h-12 px-8 rounded-full bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-sm flex items-center justify-center gap-2">
         <Search className="w-4 h-4" /> Cari Paket
       </button>
     </form>
